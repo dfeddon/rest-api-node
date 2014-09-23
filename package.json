@@ -5,6 +5,18 @@
     "private": true,
     "dependencies": 
     {
-        "express": "3.x"
+        "express": "3.x",
+        "async": "0.x",
+        "Faker": "0.x",
+        "mongodb": "1.x",
+        "mongoose": "3.x",
+        "oauth2orize": "1.x",
+        "passport": "0.x",
+        "passport-http": "0.x",
+        "passport-http-bearer": "1.x",
+        "passport-oauth2-client-password": "0.x",
+        "winston": "0.x",
+        "forever": "0.x",
+        "nconf": "0.x"
     }
 }

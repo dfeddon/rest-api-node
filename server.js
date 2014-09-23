@@ -1,79 +1,24 @@
+////////////////////////////
+// express
+////////////////////////////
 
 var express       = require('express')
   , async         = require('async')
-  , mongoose      = require('./models/index.js')
-  , clients       = require('./routes/v1.0/clients')
-  , metrics       = require('./routes/v1.0/metrics')
-  , metricgroups  = require('./routes/v1.0/metricgroups')
-  , pages         = require('./routes/v1.0/pages')
-  , surveys       = require('./routes/v1.0/surveys')
-  //, studies       = require('./routes/v1.0/studies')
-  //, iterations    = require('./routes/v1.0/iterations')
-  //, products      = require('./routes/v1.0/products')
-  //, projects      = require('./routes/v1.0/projects')
+  , mongoose      = require('./v1.0/model/index')//.initialize()
+  , globals       = require('./v1.0/routes/globals')
+  , passport      = require('passport')
+  , oauth2        = require('./v1.0/oauth2/oauth2')
+  , config        = require('./v1.0/libs/config')
 
 // start express
 var app = express();
 
-// mongo configs
-/*var remote = '107.170.249.243'; // 15069
-var remoteport = 15069;
-var local = 'hal3000.local'; // 27017
-var localport = 27017
-var database = 'metricsdb';
+// disable x-powered-by Express
+app.disable('x-powered-by');
 
-// mongoose
-var mongoose = require('mongoose');
-mongoose.connect('mongodb://' + remote + ":15069");
-var db = mongoose.connection;
-db.on('error', console.error.bind(console, 'connection error:'));
-db.once('open', function callback()
-{
-  console.log("we're in!");
-
-  // for embedded items, see [http://mongoosejs.com/docs/populate.html]
-  var metricsSchema = mongoose.Schema
-  (
-    {
-      name: String   
-    }
-  );
-
-  metricsSchema.methods.validate = function()
-  {
-
-  }
-
-  var Metric = mongoose.model('Metric', metricsSchema);
-  var silence = new Metric({name: 'Silence'});
-  console.log(silence.name);
-});*/
-
-// start
-/*var mongo = require('mongodb');
- 
-var Server = mongo.Server,
-    Db = mongo.Db,
-    BSON = mongo.BSONPure;
-
-// connect
-var server = new Server(remote, remoteport, {auto_reconnect: true}, {safe: true});
-db = new Db(database, server);
-db.authenticate("derek", "immersyve", function(err, res){});
-db.open
-(
-  function(err, db) 
-  {
-      if(err) 
-      {
-        console.log("mongo open error");
-      }
-      else console.log("mongo opened");
-  }
-);*/
-
-
-// simple logger
+////////////////////////////
+// local scope helpers
+////////////////////////////
 app.use(function(req, res, next)
 {
   // return size (no. name-value pairs) of query string
@@ -108,11 +53,37 @@ app.use(function(req, res, next)
     return query;
   }
 
+  // build item properties
+  res.locals.buildItem=function(model)
+  {
+    var item = req.body;
+
+    // compress array of objects to array of objectId's
+    // var casted = item.pages.map(function( page ) 
+    // {
+    //   return mongoose.Types.ObjectId(page);
+    // });
+    //
+    //var readyItem = model.preSave(item);
+    for (var name in item)
+    {
+        console.log(name + " / " + item[name]);
+        if (model.schema.paths.hasOwnProperty(name))
+        {
+            //console.log("VALID!");
+            model[name] = item[name];
+        }
+        else
+        { 
+            console.log("INVALID!");
+        }
+    }
+    return model;
+  }
+
   // find item by id
   res.locals.getById=function(coll, id)
   {
-    console.log("### getById");
-    //id = "53445f05e6fe19941018616c";
     db.collection(coll, function(err, collection) 
     {
         collection.findOne(
@@ -129,30 +100,83 @@ app.use(function(req, res, next)
     });
 
   }
+
+  res.locals.getClient=function(callback)
+  {
+    console.log("getting client");
+    console.log(req.user);
+    //console.log(oauth2.token);
+
+    mongoose.AccessToken
+    .findOne({'userId':req.user._id})
+    .exec (function(err, item)
+    {
+      if (err)
+      {
+        console.log(err);
+      }
+      else 
+      {
+        console.log("item");
+        console.log(item);
+        callback(item);
+      }
+    });
+    //return res.passport;//.clientId;
+  }
+
+  // res.locals.middleAuth=function(fnc)
+  // {
+  //   if (!fnc)
+  //     fnc = middleware.yesAuth;
+  //   return middleware.middleAuth;
+  // }
+
+  // generate a GUID
+  res.locals.createGUID=function()
+  {
+    // http://guid.us/GUID/JavaScript
+    function S4() 
+    {
+        return (((1+Math.random())*0x10000)|0).toString(16).substring(1); 
+    }
+     
+    // then to call it, plus stitch in '4' in the third group
+    guid = (S4() + S4() + "-" + S4() + "-4" + S4().substr(0,3) + "-" + S4() + "-" + S4() + S4() + S4()).toLowerCase();
+    //alert(guid);
+    return guid;
+  }
+
   // console logging
   console.log('%s %s', req.method, req.url);
+
   // required
   next();
 });
 
+////////////////////////////
+// CORS middleware
+////////////////////////////
 var allowedDomains = "*";// test.com anotherdomain.com"; // or || delimiter
-//CORS middleware
 var allowCrossDomain = function(req, res, next) 
 {
     res.header('Access-Control-Allow-Origin', allowedDomains);//config.allowedDomains);
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    //console.log(req.client);
     next();
 }
  
-app.configure(function () 
+app.configure(function()
 {
     app.use(express.favicon()); // use standard favicon
     app.use(express.logger('dev')); // log all requests : 'default', 'short', 'tiny', 'dev'
-    app.use(express.bodyParser()); // json parsing
+    //app.use(express.bodyParser()); // json parsing (deprecated)
+    app.use(express.urlencoded());
+    app.use(express.json());
     app.use(express.methodOverride()); // HTTP PUT and DELETE support
     app.use(allowCrossDomain); // CORS middleware
+    app.use(passport.initialize());
     app.use(app.router); // simple route management
     /*app.use(express.session
     (
@@ -171,91 +195,336 @@ app.configure(function ()
 
 app.all('/', function(req, res, next) 
 {
-  //res.header("Access-Control-Allow-Origin", "*");
-  //res.header("Access-Control-Allow-Headers", "X-Requested-With");
-  //res.set('X-Catch-All', 'true');
+  // CORS headers
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Credentials', true);
-  res.header('Access-Control-Allow-Methods', 'POST, GET, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'POST, GET, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
   next();
  });
 
-/*
-  http://expressjs.com/3x/api.html
-
-  REQUESTS:
-  req.params : GET /user/tj is req.params.name outputs "tj"
-  req.param('name') : where ?name=tobe and /user/tobi for /user/:name outputs "tobi"
-  req.body : POST user[name]=tobi&user[email]=tobi@email.com is req.body.user.name outputs "tobi"
-  req.query : GET /search?q=tobi+ferret is req.query.q outputs "tobi ferret"
-  req.route
-  req.cookies : where cookie: name=tj is req.cookies.name and outputs "tj"
-  req.signedCookies
-  req.ip
-  req.ips
-  req.path : example.com/users?sort=desc is req.path outputs "/users"
-  req.host : example Host: "example.com:3000" is req.host outputs "example.com"
-  req.fresh
-  req.stale
-  req.xhr
-  req.protocol
-  req.secure
-  req.originalUrl
-  
-  RESPONSE:
-
-*/
 app.get('/', function(req, res)
 {
   res.send(req.query);
 });
 
-// data: db = mongo/mongoose | bson = mongo:BSON
-var data = 
-{
-  //"db":mongoose.db,
-  "mongoose":mongoose
-  //"BSON":BSON
-};
+// app.get('/api/*', function(req, res)
+// {
+//   console.log("middling");
+//   passport.authenticate('bearer', { session: false });
+//   //console.log(req);
+//   res.send(req.query);
+// });
+
+////////////////////////////
+// global middlewares
+////////////////////////////
+// token authentication (closures)
+// set method to app.locals
+// app.locals(
+// {
+//     noAuth:function(req, res, next){next();},
+//     yesAuth: passport.authenticate('bearer', { session: false}),
+//     middleAuth: app.locals.yesAuth
+// });
+//globals.middleAuth = globals.yesAuth;
+// var middleware = 
+// {
+//   noAuth: function(req, res, next){next();},
+//   yesAuth: passport.authenticate('bearer', { session: false}),
+//   middleAuth: this.yesAuth
+// }
+// app.set('noAuth', function(req, res, next){next();});
+// app.set('yesAuth', passport.authenticate('bearer', { session: false}));
+// app.set('middleAuth', app.get('yesAuth'));
+// evalute client
+var yesAuth = passport.authenticate('bearer', { session: false});
+app.get('/api/*', yesAuth);//app.get('middleAuth'));//passport.authenticate('bearer', { session: false }) );
+app.put('/api/*', yesAuth);//app.get('middleAuth'));
+app.post('/api/*', yesAuth);//app.get('middleAuth'));
+app.delete('/api/*', yesAuth);//app.get('middleAuth'));
+
+// permissioning
+//app.get('api/*', globals.permissioning);
+
+////////////////////////////
+// oauth2 (token authentication)
+////////////////////////////
+require('./v1.0/oauth2/auth');
+
+app.post('/oauth2/token', oauth2.token, function(req, res){});
+// app.post('/client', function(req, res, next)
+//   {
+//     if (req.body.client_id)
+//     {
+//       switch(req.body.client_id)
+//       {
+//         case "insight_player":
+
+//         console.log("we have insight");
+//         var disableAuth = app.get('noAuth');
+//         app.set('middleAuth', disableAuth);//disableAuth);//app.get('noAuth'));
+//         app.use(function(req, res, next){next();})
+
+//         break;
+//       }
+//     }
+//     console.log('derek ' + req.method + ' / ' + req.body.client_id);
+//     next();
+//   });
 
 ////////////////////////////
 // metrics
 ////////////////////////////
-app.get('/api/metrics', metrics.findAll(data));
-app.get('/api/metrics/:id', metrics.findById(data));
-app.post('/api/metrics', metrics.addMetrics(data));
-app.put('/api/metrics/:id', metrics.updateMetrics(data));
-app.delete('/api/metrics/:id', metrics.deleteMetrics(data));
-app.patch('/api/metrics/:id', metrics.patchMetrics(data));
+var metricsData =
+{
+  "model":mongoose.Metrics,
+  "populate":"metricLogic.logicSets.logicItems.metric"//userPermissions items conditions",
+  //"linkedModels":[mongoose.permissionsModel,mongoose.metricItemsModel]
+};
+
+app.get('/api/metrics', globals.permissioning(metricsData),
+  globals.findAll(metricsData));
+app.get('/api/metrics/:id', globals.permissioning(metricsData),
+  globals.findById(metricsData));
+app.post('/api/metrics', 
+  globals.addItems(mongoose.Metrics));
+app.put('/api/metrics/:id', 
+  globals.updateItems(mongoose.Metrics));
+app.delete('/api/metrics/:id', 
+  globals.deleteItems(mongoose.Metrics));
+// batch post
+app.post('/api/metrics/batch', 
+   globals.addBatchItems(mongoose.Metrics));
+// public api's
+//app.get('/public/metrics', globals.findAll(metricsData));
+//app.get('/public/metrics/:id', globals.findById(metricsData));
 
 ////////////////////////////
 // metricgroups
 ////////////////////////////
-app.get('/api/metricgroups', metricgroups.findAll(data));
-app.get('/api/metricgroups/:id', metricgroups.findById(data));
-app.post('/api/metricgroups', metricgroups.addMetricgroups(data));
-app.put('/api/metricgroups/:id', metricgroups.updateMetricgroups(data));
-app.delete('/api/metricgroups/:id', metricgroups.deleteMetricgroups(data));
-app.patch('/api/metricgroups/:id', metricgroups.patchMetricgroups(data));
+var metricGroupsData =
+{
+  "model":mongoose.MetricGroups,
+  "populate":"metrics"
+};
+
+app.get('/api/metricgroups', 
+  globals.findAll(metricGroupsData));
+app.get('/api/metricgroups/:id', 
+  globals.findById(metricGroupsData));
+app.post('/api/metricgroups', 
+  globals.addItems(mongoose.MetricGroups));
+app.put('/api/metricgroups/:id', 
+  globals.updateItems(mongoose.MetricGroups));
+app.delete('/api/metricgroups/:id', 
+  globals.deleteItems(mongoose.MetricGroups));
 
 ////////////////////////////
 // pages
 ////////////////////////////
-app.get('/api/pages', pages.findAll(data));
-app.get('/api/pages/:id', pages.findById(data));
-app.post('/api/pages', pages.addPages(data));
-app.put('/api/pages/:id', pages.updatePages(data));
-app.delete('/api/pages/:id', pages.deletePages(data));
+var pagesData =
+{
+  "model":mongoose.Pages,
+  "populate":"metrics"
+};
+app.get('/api/pages', 
+  globals.findAll(pagesData));
+app.get('/api/pages/:id', 
+  globals.findById(pagesData));
+app.post('/api/pages', 
+  globals.addItems(mongoose.Pages));
+app.put('/api/pages/:id', 
+  globals.updateItems(mongoose.Pages));
+app.delete('/api/pages/:id', 
+  globals.deleteItems(mongoose.Pages));
 
 ////////////////////////////
 // surveys
 ////////////////////////////
-app.get('/api/surveys', surveys.findAll(data));
-app.get('/api/surveys/:id', surveys.findById(data));
-app.post('/api/surveys', surveys.addSurveys(data));
-app.put('/api/surveys/:id', surveys.updateSurveys(data));
-app.delete('/api/surveys/:id', surveys.deleteSurveys(data));
+var surveysData =
+{
+  "model":mongoose.Surveys,
+  "populate":"pages"
+};
+app.get('/api/surveys', 
+  globals.findAll(surveysData));
+app.get('/api/surveys/:id', 
+  globals.findById(surveysData));
+app.post('/api/surveys', 
+  globals.addItems(mongoose.Surveys));
+app.put('/api/surveys/:id', 
+  globals.updateItems(mongoose.Surveys));
+app.delete('/api/surveys/:id', 
+  globals.deleteItems(mongoose.Surveys));
+
+////////////////////////////
+// organizations
+////////////////////////////
+var organizationsData =
+{
+  "model":mongoose.Organizations,
+  "populate":"admin metrics metricGroups"
+};
+
+app.get('/api/organizations', 
+  globals.findAll(organizationsData));
+app.get('/api/organizations/:id', 
+  globals.findById(organizationsData));
+app.post('/api/organizations', 
+  globals.addItems(mongoose.Organizations));
+app.put('/api/organizations/:id', 
+  globals.updateItems(mongoose.Organizations));
+app.delete('/api/organizations/:id', 
+  globals.deleteItems(mongoose.Organizations));
+
+////////////////////////////
+// users
+////////////////////////////
+var usersData =
+{
+  "model":mongoose.Users,
+  "populate":""
+};
+
+app.get('/api/users', 
+  globals.findAll(usersData));
+app.get('/api/users/:id', 
+  globals.findById(usersData));
+app.post('/api/users', 
+  globals.addItems(mongoose.Users));
+app.put('/api/users/:id', 
+  globals.updateItems(mongoose.Users));
+app.delete('/api/users/:id',
+  globals.deleteItems(mongoose.Users));
+
+////////////////////////////
+// projects
+////////////////////////////
+var projectsData =
+{
+  "model":mongoose.Projects,
+  "populate":"admin metrics metricGroups"
+};
+
+app.get('/api/projects', 
+  globals.findAll(projectsData));
+app.get('/api/projects/:id', 
+  globals.findById(projectsData));
+app.post('/api/projects', 
+  globals.addItems(mongoose.Projects));
+app.put('/api/projects/:id', 
+  globals.updateItems(mongoose.Projects));
+app.delete('/api/projects/:id', 
+  globals.deleteItems(mongoose.Products));
+
+////////////////////////////
+// products
+////////////////////////////
+var productsData =
+{
+  "model":mongoose.Products,
+  "populate":"admin metrics metricGroups"
+};
+
+app.get('/api/products', 
+  globals.findAll(productsData));
+app.get('/api/products/:id', 
+  globals.findById(productsData));
+app.post('/api/products', 
+  globals.addItems(mongoose.Products));
+app.put('/api/products/:id', 
+  globals.updateItems(mongoose.Products));
+app.delete('/api/products/:id', 
+  globals.deleteItems(mongoose.Products));
+
+////////////////////////////
+// iterations
+////////////////////////////
+var iterationsData =
+{
+  "model":mongoose.Iterations,
+  "populate":"admin metrics metricGroups"
+};
+
+app.get('/api/iterations', 
+  globals.findAll(iterationsData));
+app.get('/api/iterations/:id', 
+  globals.findById(iterationsData));
+app.post('/api/iterations', 
+  globals.addItems(mongoose.Iterations));
+app.put('/api/iterations/:id', 
+  globals.updateItems(mongoose.Iterations));
+app.delete('/api/iterations/:id', 
+  globals.deleteItems(mongoose.Iterations));
+
+////////////////////////////
+// studies
+////////////////////////////
+var studiesData =
+{
+  "model":mongoose.Studies,
+  "populate":"admin metrics metricGroups"
+};
+
+app.get('/api/studies', 
+  globals.findAll(studiesData));
+app.get('/api/studies/:id', 
+  globals.findById(studiesData));
+app.post('/api/studies', 
+  globals.addItems(mongoose.Studies));
+app.put('/api/studies/:id', 
+  globals.updateItems(mongoose.Studies));
+app.delete('/api/studies/:id', 
+  globals.deleteItems(mongoose.Studies));
+
+////////////////////////////
+// triggers
+////////////////////////////
+var triggersData =
+{
+  "model":mongoose.Triggers,
+  "populate":"admin metrics metricGroups"
+};
+
+app.get('/api/triggers', 
+  globals.findAll(triggersData));
+app.get('/api/triggers/:id', 
+  globals.findById(triggersData));
+app.post('/api/triggers', 
+  globals.addItems(mongoose.Triggers));
+app.put('/api/triggers/:id', 
+  globals.updateItems(mongoose.Triggers));
+app.delete('/api/triggers/:id', 
+  globals.deleteItems(mongoose.Triggers));
+
+////////////////////////////
+// libraryGroups
+////////////////////////////
+var libraryGroupsData =
+{
+  "model":mongoose.LibraryGroups,
+  "populate":"metrics pages"
+};
+
+app.get('/api/libraryGroups', 
+  globals.findAll(libraryGroupsData));
+app.get('/api/libraryGroups/:id', 
+  globals.findById(libraryGroupsData));
+app.post('/api/libraryGroups', 
+  globals.addItems(mongoose.LibraryGroups));
+app.put('/api/libraryGroups/:id', 
+  globals.updateItems(mongoose.LibraryGroups));
+app.delete('/api/libraryGroups/:id', 
+  globals.deleteItems(mongoose.LibraryGroups));
+
+// isAuthenticated
+function isAuthenticated(req, res, next)
+{
+  passport.authenticate('bearer', { session: false });
+  console.log('result '+req.user);//());
+  return next();
+}
 
 /*global.thisIsAGlobalFnc = function(res,dat)
  {
@@ -265,5 +534,5 @@ app.delete('/api/surveys/:id', surveys.deleteSurveys(data));
 ////////////////////////////
 // start server
 ////////////////////////////
-app.listen(1337, "0.0.0.0");
+app.listen(config.get('port'), "0.0.0.0");
 console.log("Express server listening on port 1337");

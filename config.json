@@ -1,0 +1,11 @@
+{
+    "port" : 1337,
+	"security": 
+	{
+        	"tokenLife" : 3600
+    },    	
+    "mongoose": 
+    {
+        "uri": "mongodb://derek:immersyve@127.0.0.1:27017/hydra"
+    }
+}
