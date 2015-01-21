@@ -3,6 +3,7 @@ var ResourceProvider    = require('../prototypes/resourceProvider').ResourceProv
 // var passport            = require('passport');
 // var oauth2        = require('../oauth2/oauth2');
 // var config        = require('../libs/config');
+var data    = require('../prototypes/dataExport').DataExport;
 
 ///////////////////
 // api's 
@@ -59,7 +60,9 @@ exports.addItems = function(model)
 {
    return function(req, res, next) 
     {
-        console.log('req body '+JSON.stringify(req.body));
+        console.log('req body');//+JSON.stringify(req.body));
+        console.log(req.body);
+        //req.body = JSON.parse(req.body);
         var resourceProvider = new ResourceProvider();
         resourceProvider.addItem(model, req, res, next, function(results)
             {
@@ -74,15 +77,34 @@ exports.addBatchItems = function(model)
 {
    return function(req, res, next) 
     {
-        //console.log('req body '+JSON.stringify(req.body));
+        console.log('prebatching...');
+        console.log(req.body);
         var resourceProvider = new ResourceProvider();
         resourceProvider.addBatchItems(model, req, res, next, function(results)
+            {
+                console.log('batch results');
+                console.log(results);
+                res.send(results);
+            }
+        );
+    }
+}
+
+// add 
+exports.copyItem = function(data) 
+{
+   return function(req, res, next) 
+    {
+        //console.log('req body '+JSON.stringify(req.body));
+        var resourceProvider = new ResourceProvider();
+        resourceProvider.copyItem(data, req, res, next, function(results)
             {
                 res.send(results);
             }
         );
     }
 }
+
 
 // update 
 exports.updateItems = function(model) 
@@ -111,6 +133,19 @@ exports.deleteItems = function(model)
                 res.send(results);
             }
         );
+    }
+}
+
+// export
+exports.exportSurvey = function(model)
+{
+    return function(req, res, next)
+    {
+        var resourceProvider = new ResourceProvider();
+        resourceProvider.exportSurvey(model, req, res, next, function(results)
+        {
+            res.send(results);
+        });
     }
 }
 

@@ -7,9 +7,8 @@ module.exports = function()
 {
 	var LibraryGroups = new Schema(
 	{
-		libraryName: 	   { type:String, required:false },
+		label: 		   { type:String, required:false },
 		type: 	   	   { type:String, enum:["metrics", "pages"], required:false },
-		//description:	   { type:String, required:false},
 		metrics:    	   [ { type:Schema.Types.ObjectId, ref:'Metrics'} ],
 		pages:    	   [ { type:Schema.Types.ObjectId, ref:'Pages'} ]
 	});

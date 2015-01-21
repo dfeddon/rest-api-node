@@ -6,7 +6,7 @@ var Schema = mongoose.Schema;
 // schema
 module.exports = function()
 {
-	var UsersSchema = new Schema(
+	var Users = new Schema(
 	{
 		username:    	{ type:String, required:true, unique:true },
 		firstName:    	{ type:String, required:false },
@@ -21,18 +21,18 @@ module.exports = function()
 		isImmersyve:  	{ type:Boolean, required:false, default:false}
 	});
 	// validate type
-	UsersSchema.path('status').validate(function(value)
+	Users.path('status').validate(function(value)
 	{
 		return /active|inactive/i.test(value);
 	}, 'Invalid user status type');
 
-	UsersSchema.methods.encryptPassword = function(password) 
+	Users.methods.encryptPassword = function(password) 
 	{
 	    return crypto.createHmac('sha1', this.salt).update(password).digest('hex');
 	    //more secure – return crypto.pbkdf2Sync(password, this.salt, 10000, 512);
 	};
 
-	/*UsersSchema.virtual('username')
+	/*Users.virtual('username')
 	.set(function(username)
 	{
 		this.email = username;
@@ -42,16 +42,17 @@ module.exports = function()
 		return this.email;
 	})*/
 
-	UsersSchema.virtual('userId')
+	Users.virtual('userId')
 	  .get(function () 
 	  {
 	      return this.id;
 	  }
 	);
 
-	UsersSchema.virtual('password')
+	Users.virtual('password')
 	  .set(function(password) 
 	  {
+	  	console.log('setting password');
 	      this._plainPassword = password;
 	      this.salt = crypto.randomBytes(32).toString('base64');
 	      //more secure - this.salt = crypto.randomBytes(128).toString('base64');
@@ -63,12 +64,12 @@ module.exports = function()
 	    return this._plainPassword;
 	  }
 	);
-	UsersSchema.methods.checkPassword = function(password) 
+	Users.methods.checkPassword = function(password) 
 	{
 	    return this.encryptPassword(password) === this.hashedPassword;
 	};
 
-	/*UsersSchema.path('email').validate(
+	/*Users.path('email').validate(
 		function (value, done) 
 		{
 			mongoose.models["Users"].count({ name: value }, function (error, count) 
@@ -79,5 +80,5 @@ module.exports = function()
 		}, 'Users email value is not unique'
 	);*/
 
-	mongoose.model('Users', UsersSchema);
+	mongoose.model('Users', Users);
 }

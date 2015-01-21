@@ -12,6 +12,7 @@ module.exports = function()
 		description:    	{ type:String, required: false },
 		isEditable:	 	{ type:Boolean, default:false},
 		variable:       	{ type:String, required: false },
+		variableAuto:       { type:Boolean, required: false, default:false},
 		stem:           	{ type:String, required: false },
 		instructions:   	{ type:String, required: false },
 		response:       	{ type:Array, required: false },
@@ -25,18 +26,18 @@ module.exports = function()
 		reverse:        	{ type:Boolean, required: false, default: false },
 		visible:        	{ type:Boolean, required: false, default: true },
 		remove:         	{ type:Number, required: false, default: 0 },
-		randomizeItems: 	{ type:Number, required: false, default: 0 },
+		randomizeItems: 	{ type:Boolean, required: false, default: false },
 		conditions:     	{ type:Array, required: false },
 		scale:          	{ type:Number, required: false, default: null},
 		libraryType:    	{ type:String, enum:["none","single","group"], default: "none"},
-		libraryName:		{ type:String, required:false},
+		libraryLabel:		{ type:String, required:false},
 		libraryDescription: { type:String, required:false},
 		dateCreated:    	{ type:Date, required: false, default: Date.now },
 		dateEdited:     	{ type:Date, required: false, default: Date.now },
 		piping:         	[ 'Piping' ],
 		items:          	[ 'MetricItems' ],
 		tableItems:     	[ 'TableItems' ],
-		metricLogic:        [ "Logic" ],
+		metricLogic:        [ 'Logic' ],
 		permissions:    	[ 'Permissions' ]
 		//conditions:     	[ "MetricConditions" ]
 	});
@@ -72,6 +73,21 @@ module.exports = function()
 		{
 			this.dateCreated = now;
 		}
+
+		// add tableItem id's
+		console.log('=== metrics pre-save!')
+		//console.log(this);
+		for (var i = 0; i < this.tableItems.length; i++)
+		{
+			if (!this.tableItems[i]._id)
+			{
+				//console.log('is id undefined');
+				//console.log(this.tableItems[i]);
+				this.tableItems[i]._id = mongoose.Types.ObjectId();
+				//console.log(this.tableItems[i].uid);
+			}
+		}
+		//console.log(this.tableItems);
 		
 		next();
 	});

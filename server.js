@@ -38,6 +38,8 @@ app.use(function(req, res, next)
   {
     var query = {};
     var val;
+    console.log("query2mongo");
+    console.log(req.query);
     Object.keys(req.query).forEach(function(key)
     {
       val = req.param(key);
@@ -49,7 +51,10 @@ app.use(function(req, res, next)
 
       // build Mongo query object
       query[key] = val;
+      console.log(query[key], val);
     });
+    console.log('query');
+    console.log(query);
     return query;
   }
 
@@ -67,15 +72,23 @@ app.use(function(req, res, next)
     //var readyItem = model.preSave(item);
     for (var name in item)
     {
-        console.log(name + " / " + item[name]);
+        console.log(name + " / " + item[name], name);
         if (model.schema.paths.hasOwnProperty(name))
         {
             //console.log("VALID!");
             model[name] = item[name];
         }
-        else
-        { 
-            console.log("INVALID!");
+        else // might be a virtual property
+        {
+            console.log("INVALID property", name, item[name]);
+            console.log("checking for virtual");
+            // append data IF property is a 'virtual'
+            if (model.schema.virtuals.hasOwnProperty([name]))
+            {
+              console.log("IS a virtual, so adding it!");
+              model[name] = item[name];
+            }
+
         }
     }
     return model;
@@ -296,6 +309,9 @@ app.delete('/api/metrics/:id',
 // batch post
 app.post('/api/metrics/batch', 
    globals.addBatchItems(mongoose.Metrics));
+// deep copy
+app.put('/api/metrics/copy/:id',
+  globals.copyItem(metricsData));
 // public api's
 //app.get('/public/metrics', globals.findAll(metricsData));
 //app.get('/public/metrics/:id', globals.findById(metricsData));
@@ -338,6 +354,9 @@ app.put('/api/pages/:id',
   globals.updateItems(mongoose.Pages));
 app.delete('/api/pages/:id', 
   globals.deleteItems(mongoose.Pages));
+// deep copy
+app.put('/api/pages/copy/:id',
+  globals.copyItem(pagesData));
 
 ////////////////////////////
 // surveys
@@ -357,6 +376,9 @@ app.put('/api/surveys/:id',
   globals.updateItems(mongoose.Surveys));
 app.delete('/api/surveys/:id', 
   globals.deleteItems(mongoose.Surveys));
+// deep copy
+app.put('/api/surveys/copy/:id',
+  globals.copyItem(surveysData));
 
 ////////////////////////////
 // organizations
@@ -404,7 +426,7 @@ app.delete('/api/users/:id',
 var projectsData =
 {
   "model":mongoose.Projects,
-  "populate":"admin metrics metricGroups"
+  "populate":"products"
 };
 
 app.get('/api/projects', 
@@ -416,7 +438,7 @@ app.post('/api/projects',
 app.put('/api/projects/:id', 
   globals.updateItems(mongoose.Projects));
 app.delete('/api/projects/:id', 
-  globals.deleteItems(mongoose.Products));
+  globals.deleteItems(mongoose.Projects));
 
 ////////////////////////////
 // products
@@ -424,7 +446,7 @@ app.delete('/api/projects/:id',
 var productsData =
 {
   "model":mongoose.Products,
-  "populate":"admin metrics metricGroups"
+  "populate":"iterations"
 };
 
 app.get('/api/products', 
@@ -444,7 +466,7 @@ app.delete('/api/products/:id',
 var iterationsData =
 {
   "model":mongoose.Iterations,
-  "populate":"admin metrics metricGroups"
+  "populate":"studies"
 };
 
 app.get('/api/iterations', 
@@ -464,7 +486,7 @@ app.delete('/api/iterations/:id',
 var studiesData =
 {
   "model":mongoose.Studies,
-  "populate":"admin metrics metricGroups"
+  "populate":"surveys"
 };
 
 app.get('/api/studies', 
@@ -477,6 +499,9 @@ app.put('/api/studies/:id',
   globals.updateItems(mongoose.Studies));
 app.delete('/api/studies/:id', 
   globals.deleteItems(mongoose.Studies));
+// deep copy
+app.put('/api/studies/copy/:id',
+  globals.copyItem(studiesData));
 
 ////////////////////////////
 // triggers
@@ -517,6 +542,135 @@ app.put('/api/libraryGroups/:id',
   globals.updateItems(mongoose.LibraryGroups));
 app.delete('/api/libraryGroups/:id', 
   globals.deleteItems(mongoose.LibraryGroups));
+
+////////////////////////////
+// libraryFolders
+////////////////////////////
+var libraryFoldersData =
+{
+  "model":mongoose.LibraryFolders,
+  "populate":"metrics pages libraryGroups"
+};
+
+app.get('/api/libraryFolders', 
+  globals.findAll(libraryFoldersData));
+app.get('/api/libraryFolders/:id', 
+  globals.findById(libraryFoldersData));
+app.post('/api/libraryFolders', 
+  globals.addItems(mongoose.LibraryFolders));
+app.put('/api/libraryFolders/:id', 
+  globals.updateItems(mongoose.LibraryFolders));
+app.delete('/api/libraryFolders/:id', 
+  globals.deleteItems(mongoose.LibraryFolders));
+
+////////////////////////////
+// sessions
+////////////////////////////
+var sessionsData =
+{
+  "model":mongoose.Sessions,
+  "populate":"user study survey lastPage"
+};
+
+app.get('/api/sessions', 
+  globals.findAll(sessionsData));
+app.get('/api/sessions/:id', 
+  globals.findById(sessionsData));
+app.post('/api/sessions', 
+  globals.addItems(mongoose.Sessions));
+app.put('/api/sessions/:id', 
+  globals.updateItems(mongoose.Sessions));
+app.delete('/api/sessions/:id', 
+  globals.deleteItems(mongoose.Sessions));
+
+////////////////////////////
+// constructs
+////////////////////////////
+var constructsData =
+{
+  "model":mongoose.Constructs,
+  "populate":""
+};
+
+app.get('/api/constructs', 
+  globals.findAll(constructsData));
+app.get('/api/constructs/:id', 
+  globals.findById(constructsData));
+app.post('/api/constructs', 
+  globals.addItems(mongoose.Constructs));
+app.put('/api/constructs/:id', 
+  globals.updateItems(mongoose.Constructs));
+app.delete('/api/constructs/:id', 
+  globals.deleteItems(mongoose.Constructs));
+
+////////////////////////////
+// presets
+////////////////////////////
+var presetsData =
+{
+  "model":mongoose.Presets,
+  "populate":""
+};
+
+app.get('/api/presets', 
+  globals.findAll(presetsData));
+app.get('/api/presets/:id', 
+  globals.findById(presetsData));
+app.post('/api/presets', 
+  globals.addItems(mongoose.Presets));
+app.put('/api/presets/:id', 
+  globals.updateItems(mongoose.Presets));
+app.delete('/api/presets/:id', 
+  globals.deleteItems(mongoose.Presets));
+
+////////////////////////////
+// metricResponses
+////////////////////////////
+var responseData =
+{
+  "model":mongoose.MetricResponses,
+  "populate":""//session study survey page metric"
+};
+
+app.get('/api/response', 
+  globals.findAll(responseData));
+app.get('/api/response/:id', 
+  globals.findById(responseData));
+app.post('/api/response', 
+  globals.addItems(mongoose.MetricResponses));
+app.put('/api/response/:id', 
+  globals.updateItems(mongoose.MetricResponses));
+app.delete('/api/response/:id', 
+  globals.deleteItems(mongoose.MetricResponses));
+// batch post
+app.post('/api/responses', 
+  globals.addBatchItems(mongoose.MetricResponses));
+
+////////////////////////////
+// export
+////////////////////////////
+var exportData =
+{
+  "model":mongoose.MetricResponses,
+  "populate":""//session study survey page metric"
+};
+
+app.get('/api/export/:id', 
+  globals.exportSurvey(exportData));
+// app.get('/api/response/:id', 
+//   globals.findById(exportData));
+// app.post('/api/response', 
+//   globals.addItems(mongoose.MetricResponses));
+// app.put('/api/response/:id', 
+//   globals.updateItems(mongoose.MetricResponses));
+// app.delete('/api/response/:id', 
+//   globals.deleteItems(mongoose.MetricResponses));
+// // batch post
+// app.post('/api/responses', 
+//   globals.addBatchItems(mongoose.MetricResponses));
+
+
+
 
 // isAuthenticated
 function isAuthenticated(req, res, next)

@@ -13,5 +13,12 @@ module.exports = function()
 		logicItems:      [ 'LogicItems' ]
 	});
 
+	LogicSets.method("getPopulates", function()
+	{
+		// space delimited, eg. "pages permissions logic"
+		return "";
+		//return "logicItems.metric";
+	});
+
 	mongoose.model('LogicSets', LogicSets);
 }

@@ -6,7 +6,8 @@ var mongoose    = require('mongoose')
 // connect
 //mongoose.connect('mongodb://derek:immersyve@' + remote + ":" + remoteport + "/metricsdb");
 var conn = mongoose.connect(config.get('mongoose:uri'));
-var db = mongoose.connection;
+global.db = mongoose.connection;
+//console.log('db', db);
 //console.log('con='+JSON.stringify(conn));
 db.on('error', function (err)
 {
@@ -55,8 +56,18 @@ module.exports.Triggers = mongoose.model('Triggers');
 module.exports.MetricItems = mongoose.model('MetricItems');
 module.exports.TableItems = mongoose.model('TableItems');
 module.exports.MetricPresets = mongoose.model('MetricPresets');
+module.exports.LibraryFolders = mongoose.model('LibraryFolders');
 module.exports.LibraryGroups = mongoose.model('LibraryGroups');
 module.exports.Piping = mongoose.model('Piping');
+module.exports.Sessions = mongoose.model('Sessions');
+module.exports.MetricResponses = mongoose.model('MetricResponses');
+module.exports.ResponseItems = mongoose.model('ResponseItems');
+module.exports.ResponseTables = mongoose.model('ResponseTables');
+module.exports.Studies = mongoose.model('Studies');
+module.exports.Constructs = mongoose.model('Constructs');
+module.exports.ConstructItems = mongoose.model('ConstructItems');
+module.exports.Presets = mongoose.model('Presets');
+module.exports.PresetItems = mongoose.model('PresetItems');
 //module.exports.MetricLibraries = mongoose.model('MetricLibraries');
 
 
