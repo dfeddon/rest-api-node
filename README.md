@@ -1,2 +1,2 @@
-hydra-node
+Restful Node API
 ==========
